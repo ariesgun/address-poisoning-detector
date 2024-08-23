@@ -1,3 +1,4 @@
+import pathlib
 import requests
 import time
 import uuid
@@ -7,13 +8,37 @@ from typing import List
 
 from sentinel.definitions import BLOCKCHAIN
 from sentinel.sentry.v2.block_tx import BlockTxDetector
+from sentinel.models.database import Database
 from sentinel.models.event import Event, Blockchain
 from sentinel.models.transaction import Transaction
 from sentinel.db.contract.abi.erc20 import ERC20 as ERC20_ABI
 from sentinel.utils.web3 import get_async_web3
 from sentinel.utils.transaction import filter_events
 from sentinel.db.contract.abi.static import ABI_EVENT_TRANSFER
+from sentinel.db.label_db.local import LabelDB
 
+
+class V2LabelDB(LabelDB):
+    
+    def __init__(
+        self,
+        path: pathlib.Path,
+        update_tags: List[str] = [],
+        update_interval: int = 120,
+        **kwargs,
+    ) -> None:
+        """
+        Label DB Init
+        """
+        super().__init__(path, update_tags, update_interval, **kwargs)
+    
+    @classmethod
+    def from_settings(cls, settings: Database, **kwargs):
+        path = settings.parameters.pop("path")
+        # cls.logger.info(f"Init ... {path}")
+        kwargs.update(settings.parameters)
+        return cls(path=path, **kwargs)
+    
 
 class AddressPoisoningDetector(BlockTxDetector):
     name = "BalanceMonitor"

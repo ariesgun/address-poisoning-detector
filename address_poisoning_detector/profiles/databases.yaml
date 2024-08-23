@@ -1,6 +1,6 @@
 databases:
   - id: address_poisoning_detector/local/label_db
-    type: sentinel.db.label_db.local.LabelDB
+    type: address_poisoning_detector.sentry.V2LabelDB
     description: >
       Whale Addresses DB
     parameters:
