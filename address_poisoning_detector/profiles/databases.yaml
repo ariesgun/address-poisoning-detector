@@ -1,0 +1,7 @@
+databases:
+  - id: address_poisoning_detector/local/label_db
+    type: sentinel.db.label_db.local.LabelDB
+    description: >
+      Whale Addresses DB
+    parameters:
+      path: data/label_db.json

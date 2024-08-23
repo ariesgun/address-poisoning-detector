@@ -1,0 +1,38 @@
+inputs:
+
+# Detectors Configuration
+
+- id: hacken/cloud/kafka/monitoring_conditions
+  type: sentinel.channels.kafka.config.InboundConfigChannel
+  parameters:
+    bootstrap_servers: {{ env['KAFKA_BOOTSTRAP_SERVERS'] }}
+    topics: 
+    - extractor.sync.detector
+
+# Kafka Transactions
+
+- id: hacken/cloud/kafka/transaction/ethereum
+  type: sentinel.channels.kafka.transactions.InboundTransactionsChannel
+  parameters:
+    bootstrap_servers: {{ env['KAFKA_BOOTSTRAP_SERVERS'] }}
+    topics: 
+    - {{ env['KAFKA_INBOUND_ETH_TX_TOPIC'] }}
+
+- id: hacken/cloud/kafka/events
+  type: sentinel.channels.kafka.events.InboundEventsChannel
+  parameters:
+    bootstrap_servers: {{ env['KAFKA_BOOTSTRAP_SERVERS'] }}
+    topics: 
+    - {{ env['KAFKA_OUTBOUND_EVENT_TOPIC']}}
+
+# Websocket Transactions
+
+- id: hacken/cloud/ws/transaction/ethereum
+  type: sentinel.channels.ws.transactions.InboundTransactionChannel
+  parameters:
+    server_uri: {{ env["ETHEREUM_WS_URL"] }}
+
+- id: local/ws/transaction
+  type: sentinel.channels.ws.transactions.InboundTransactionChannel
+  parameters:
+    server_uri: ws://localhost:9300

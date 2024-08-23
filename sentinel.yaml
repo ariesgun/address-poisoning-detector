@@ -1,0 +1,10 @@
+project:
+  name: AddressDetectorSentinel
+  description: >
+    Address Poisoning Detector using Sentinel SDK
+
+envs:
+  local: ./.envs-local.yaml
+  demo: ./.envs-demo.yaml
+  cloud: ./.envs-cloud.yaml
+

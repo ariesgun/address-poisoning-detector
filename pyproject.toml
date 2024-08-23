@@ -1,0 +1,59 @@
+[project]
+name = "address-poisoning-detector"
+description = "Address Poisoning Detector"
+requires-python = ">=3.10"
+readme = "README.md"
+dynamic = ["version"]
+
+keywords = [
+    "sentinel", "monitor", "detector",
+    "web3", "ethereum", "arbitrum", "bsc"
+]
+
+dependencies = [
+    "aiofiles==24.1.0",
+    "aiohttp==3.10.4",
+    "aiokafka==0.11.0",
+    "async-lru==2.0.4",
+    "cbor2==5.6.4",
+    "croniter==3.0.3",
+    "jinja2==3.1.4",
+    "httpx==0.27.0",
+    "pydantic==2.8.2",
+    "PyYAML==6.0.2",
+    "rich==13.7.1",
+    "web3==6.20.2",
+    "websockets==12.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/sentinel/version.py"
+
+[tool.hatch.build.targets.wheel]
+sources = ["src"]
+packages = ["src/sentinel"]
+
+[tool.hatch.build.targets.sdist]
+# include = [
+#   "pkg/*.py",
+#   "/tests",
+# ]
+# exclude = [
+#   "*.json",
+#   "pkg/_compat.py",
+# ]
+
+[project.scripts]
+sentinel = 'sentinel.cli:execute'
+
+[tool.ruff]
+# Allow lines to be as long as 120.
+line-length = 120
+
+[tool.pytest.ini_options]
+addopts = "--cov=sentinel --cov-report term-missing"
+testpaths = ["tests", ]
