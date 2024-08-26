@@ -32,6 +32,11 @@ inputs:
   parameters:
     server_uri: {{ env["ETHEREUM_WS_URL"] }}
 
+- id: hacken/cloud/ws/transaction/bsc
+  type: sentinel.channels.ws.transactions.InboundTransactionChannel
+  parameters:
+    server_uri: {{ env["BSC_WS_URL"] }}
+
 - id: local/ws/transaction
   type: sentinel.channels.ws.transactions.InboundTransactionChannel
   parameters:

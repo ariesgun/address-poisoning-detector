@@ -71,12 +71,11 @@ class AddressPoisoningDetector(BlockTxDetector):
         for _whale in self._whale_wallets:
             self._whale_wallet_map[_whale.address] = {
                 "balance": 0,
-                "to": [],
-                "poisoned_address": []
+                "to": set(),
+                "poisoned_address": set()
             }
 
         self.retrieve_tokens()
-        await self.calculate_address_balance("0x1e227979f0b5bc691a70deaed2e0f39a6f538fd5")
 
         # self.erc20_contract = self.w3.eth.contract(address=self.w3.to_checksum_address(self.erc20_addr), abi=ERC20_ABI)
 
@@ -234,16 +233,16 @@ class AddressPoisoningDetector(BlockTxDetector):
                     await self.databases.label.add(tx.from_address, ["whale"], "native")
                     self._whale_wallet_map[tx.from_address] = {
                         "balance": 0,
-                        "to": [],
-                        "poisoned_address": []
+                        "to": set(),
+                        "poisoned_address": set()
                     }
 
                 if tx.to_address not in self._whale_wallet_map:
                     await self.databases.label.add(tx.to_address, ["whale"], "native")
                     self._whale_wallet_map[tx.to_address] = {
                         "balance": 0,
-                        "to": [],
-                        "poisoned_address": []
+                        "to": set(),
+                        "poisoned_address": set()
                     }
 
             # Check if account is a whale or not based on the tx events value
@@ -251,68 +250,70 @@ class AddressPoisoningDetector(BlockTxDetector):
                 if await self.calculate_erc20_value(tx_event.address, tx_event.fields["value"]) > 100000:
                     self.logger.debug(f"Update DB ERC-20 {tx.from_address}")
 
-                    if tx_event.fields["from"] not in self._whale_wallet_map:
+                    if tx_event.fields.get("from", "0x") not in self._whale_wallet_map:
                         await self.databases.label.add(tx_event.fields["from"], ["whale"], "native")
                         self._whale_wallet_map[tx_event.fields["from"]] = {
                             "balance": 0,
-                            "to": [],
-                            "poisoned_address": []
+                            "to": set(),
+                            "poisoned_address": set()
                         }
 
                     if tx_event.fields["to"] not in self._whale_wallet_map:
                         await self.databases.label.add(tx_event.fields["to"], ["whale"], "native")
                         self._whale_wallet_map[tx_event.fields["to"]] = {
                             "balance": 0,
-                            "to": [],
-                            "poisoned_address": []
+                            "to": set(),
+                            "poisoned_address": set()
                         }
 
             # Store addresses the whale sends tokens to (ignore contract interaction)
             if tx.from_address in self._whale_wallet_map and tx.input == "0x":
                 # self.logger.info(f"Adding {tx.to_address} from {tx.from_address}")
-                self._whale_wallet_map[tx.from_address]["to"].append(tx.to_address)
+                self._whale_wallet_map[tx.from_address]["to"].add(tx.to_address)
 
             # Check any big ERC-20 token transfer
             for tx_event in filter_events(tx.logs, [ABI_EVENT_TRANSFER]):
-                if tx_event.fields["from"] in self._whale_wallet_map:
-                    event_to = tx_event.fields["to"]
-                    # self.logger.info(f"Comparing {_to_addr} with {tx_event.fields['to']}")
-                    self._whale_wallet_map[tx_event.fields["from"]]["to"].append(event_to)
+                # self.logger.info(f"{tx.hash} tx_event {tx_event.fields}")
+                if tx_event.fields.get("from", "0x") in self._whale_wallet_map and \
+                    await self.calculate_erc20_value(tx_event.address, tx_event.fields["value"]) > 100:
+                        event_to = tx_event.fields["to"]
+                        # self.logger.info(f"Comparing {_to_addr} with {tx_event.fields['to']}")
+                        self._whale_wallet_map[tx_event.fields["from"]]["to"].add(event_to)
             
                 
             # Check transaction to whale and see verify the from_address
             if tx.input == "0x" and tx.to_address in self._whale_wallet_map:
                 for _to_addr in self._whale_wallet_map[tx.to_address]["to"]:
                     # self.logger.info(f"Comparing {_to_addr} with {tx.from_address}")
-                    if (_to_addr.startswith(tx.from_address[:4]) or _to_addr.startswith(tx.from_address[:5]) or _to_addr.startswith(tx.from_address[:3])):
+                    if (_to_addr.startswith(tx.from_address[:4]) or _to_addr.startswith(tx.from_address[:5]) or _to_addr.startswith(tx.from_address[:6])):
                         if (_to_addr.endswith(tx.from_address[-4:]) or _to_addr.endswith(tx.from_address[-5:]) or _to_addr.endswith(tx.from_address[-3:])):
-                            self.logger.info(f"Phising suspect found {tx.hash}. From Addr {tx.from_address} mimes {_to_addr}")
-                            self._whale_wallet_map[tx.to_address]["poisoned_address"].append(tx.from_address)
+                            self.logger.info(f"Phising suspect found {tx.hash}. From Addr {tx.from_address} mimes {_to_addr} targetting {tx.to_address}")
+                            self._whale_wallet_map[tx.to_address]["poisoned_address"].add(tx.from_address)
                             # await self.send_notification(tx.from_address, self.native, tx.value, tx)
                 
             # Check fake events
             for tx_event in filter_events(tx.logs, [ABI_EVENT_TRANSFER]):
-                if tx_event.fields["from"] in self._whale_wallet_map:
+                if tx_event.fields.get("from", "0x") in self._whale_wallet_map:
                     for _to_addr in self._whale_wallet_map[tx_event.fields["from"]]["to"]:
                         event_to = tx_event.fields["to"]
-                        # self.logger.info(f"Comparing {_to_addr} with {tx_event.fields['to']}")
                         if (_to_addr != event_to):
-                            if (_to_addr.startswith(event_to[:4]) or _to_addr.startswith(event_to[:5]) or _to_addr.startswith(event_to[:3])):
+                            # self.logger.info(f"Comparing {_to_addr} with {tx_event.fields['to']}")  
+                            if (_to_addr.startswith(event_to[:4]) or _to_addr.startswith(event_to[:5]) or _to_addr.startswith(event_to[:6])):
                                 if (_to_addr.endswith(event_to[-4:]) or _to_addr.endswith(event_to[-5:]) or _to_addr.endswith(event_to[-3:])):
-                                    self.logger.info(f"Phising suspect found events {tx.hash}. From Addr {event_to} mimes {_to_addr}")
-                                    self._whale_wallet_map[tx_event.fields["from"]]["poisoned_address"].append(tx_event.fields['to'])
+                                    self.logger.info(f"Phising suspect found events {tx.hash}. From Addr {event_to} mimes {_to_addr} targetting {tx_event.fields['from']}")
+                                    self._whale_wallet_map[tx_event.fields["from"]]["poisoned_address"].add(tx_event.fields['to'])
                                     # await self.send_notification(event_to, self.native, tx_event.fields['value'], tx)
 
-            # Detect if phising attack succeed
-            if tx.from_address in self._whale_wallet_map and tx.to_address in self._whale_wallet_map[tx.from_address]["poisoned_address"] and tx.input == "0x":
-                if await self.calculate_transaction_value(tx.value) > 1000:
+            # Detect if phising attack succeeds
+            # This is valid only if tokens value transferred to the attacker > 100 USD.
+            if tx.from_address in self._whale_wallet_map and tx.to_address in self._whale_wallet_map[tx.from_address]["poisoned_address"]:
+                if await self.calculate_transaction_value(tx.value) > 100:
                     self.logger.info(f"Poisoned Attack succeed. Hash {tx.hash}: {tx.to_address} from {tx.from_address}")
             else:
                 # Check fake events
                 for tx_event in filter_events(tx.logs, [ABI_EVENT_TRANSFER]):
-                    # self.logger.info(f"Should be OK {self._whale_wallet_map[tx_event.fields['from']]}")
-                    if tx_event.fields["from"] in self._whale_wallet_map and tx_event.fields["to"] in self._whale_wallet_map[tx_event.fields["from"]]["poisoned_address"]:
-                        if await self.calculate_erc20_value(tx_event.address, tx_event.fields["value"]) > 1000:
+                    if tx_event.fields.get("from", "0x") in self._whale_wallet_map and tx_event.fields["to"] in self._whale_wallet_map[tx_event.fields["from"]]["poisoned_address"]:
+                        if await self.calculate_erc20_value(tx_event.address, tx_event.fields["value"]) > 100:
                             self.logger.info(f"Poisoned Attack succeed. Hash {tx.hash}: {event_to} from {tx.from_address}")
 
 

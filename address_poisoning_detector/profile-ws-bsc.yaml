@@ -1,0 +1,20 @@
+imports:
+- profiles/databases.yaml
+- profiles/inputs.yaml
+- profiles/outputs.yaml
+
+sentries:
+
+- name: AddressPoisoningDetector
+  type: address_poisoning_detector.sentry.AddressPoisoningDetector
+  description: >
+    Detect address poisoning activities.
+  parameters:
+    network: bsc
+    rpc: {{ env['BSC_RPC_URL']}}
+  inputs:
+  - hacken/cloud/ws/transaction/bsc
+  outputs:
+  - address_poisoning_detector/local/fs/event
+  databases:
+  - address_poisoning_detector/local/label_db
