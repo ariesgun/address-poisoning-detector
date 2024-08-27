@@ -246,7 +246,7 @@ class AddressPoisoningDetector(BlockTxDetector):
             if tx.input == "0x" and tx.to_address in self._whale_wallet_map:
                 for _to_addr in self._whale_wallet_map[tx.to_address]["to"]:
                     if self.check_if_address_mime(_to_addr, tx.from_address):
-                        self.logger.info(f"Possible Addr Poisoning Attack\n Transaction Hash: [{tx.hash}]\n Detail: {event_to} mimes {_to_addr} targetting {tx_event.fields['from']}\n")
+                        self.logger.info(f"Possible Addr Poisoning Attack\n Transaction Hash: [{tx.hash}]\n Detail: {tx.from_address} mimes {_to_addr} targetting {tx.to_address}\n")
                         self._whale_wallet_map[tx.to_address]["poisoned_address"].add(tx.from_address)
                         # await self.send_notification(tx.from_address, self.native, tx.value, tx)
                 
@@ -255,8 +255,8 @@ class AddressPoisoningDetector(BlockTxDetector):
                 if tx_event.fields.get("from", "0x") in self._whale_wallet_map:
                     for _to_addr in self._whale_wallet_map[tx_event.fields["from"]]["to"]:
                         event_to = tx_event.fields["to"]
-                        if self.check_if_address_mime(_to_addr, event_to):
-                            self.logger.info(f"Possible Addr Poisoning Attack\n Transaction Hash: [{tx.hash}]\n Detail: {event_to} mimes {_to_addr} targetting {tx_event.fields['from']}\n")
+                        if self.check_if_address_mime(_to_addr, event_to) and await self.calculate_erc20_value(tx_event.address, tx_event.fields["value"]) < 10:
+                            self.logger.info(f"Possible Addr Poisoning Attack Event\n Transaction Hash: [{tx.hash}]\n Detail: {event_to} mimes {_to_addr} targetting {tx_event.fields['from']}\n")
                             self._whale_wallet_map[tx_event.fields["from"]]["poisoned_address"].add(tx_event.fields['to'])
                             # await self.send_notification(event_to, self.native, tx_event.fields['value'], tx)
 
@@ -271,7 +271,7 @@ class AddressPoisoningDetector(BlockTxDetector):
                 for tx_event in filter_events(tx.logs, [ABI_EVENT_TRANSFER]):
                     if tx_event.fields.get("from", "0x") in self._whale_wallet_map and tx_event.fields["to"] in self._whale_wallet_map[tx_event.fields["from"]]["poisoned_address"]:
                         if await self.calculate_erc20_value(tx_event.address, tx_event.fields["value"]) > 100:
-                            self.logger.info(f"Poisoning Attack succeeded.\n Transaction Hash: [{tx.hash}]\n Detail: {tx.from_address} sent native tokens to {tx.to_address}\n")
+                            self.logger.info(f"Poisoning Attack succeeded Events.\n Transaction Hash: [{tx.hash}]\n Detail: {tx.from_address} sent native tokens to {tx.to_address}\n")
 
 
     async def send_notification(self, addr: str, token: str, balance: int, tx: Transaction) -> None:
